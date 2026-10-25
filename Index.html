@@ -1,0 +1,92 @@
+
+  bt=setTimeout(()=>{
+    if(!vsCpu||k!==ACT[turn])return;
+    if(busy){botTick();return;}
+    if(rolled===null)roll();
+    else{const mv=movable(k,rolled);if(mv.length)move(k,botPick(k,mv,rolled));}
+  },rolled===null?900:700);
+}
+const ST={get(k,d){try{const v=localStorage.getItem('lf_'+k);return v===null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem('lf_'+k,JSON.stringify(v));}catch(e){}}};
+let coins=ST.get('coins',1000),gems=ST.get('gems',50),pname=ST.get('name','Player'),pav=ST.get('av','\u{1F9D1}');
+let owned=ST.get('owned',['#fff']),diceC=ST.get('dice','#fff');
+function refresh(){$('cn').textContent=coins;$('gm2').textContent=gems;$('av').textContent=pav;dice.style.background=diceC;ST.set('coins',coins);ST.set('gems',gems);}
+const mk=(tag,txt,cls)=>{const e=document.createElement(tag);if(txt)e.textContent=txt;if(cls)e.className=cls;return e;};
+function panel(title,fn){$('pt').textContent=title;$('pb').innerHTML='';fn($('pb'));$('pnl').classList.add('show');}
+$('px').onclick=()=>$('pnl').classList.remove('show');
+function openLobby(){$('nm').value=pname;$('lob').classList.add('show');}
+const QID='99999';
+function quickPlay(){quick=true;qTry=0;$('nm').value=pname;$('pw').value=QID;$('rc').value=QID;toast('Finding players...');createRoom();}
+$('frd').onclick=openLobby;$('onl').onclick=quickPlay;
+$('pnp').onclick=()=>{vsCpu=false;pick.classList.add('show');};
+$('bcpu').onclick=()=>{vsCpu=true;pick.classList.add('show');};
+
+const DAYS=[100,150,200,250,300,400,500];
+$('nEv').onclick=()=>panel('Daily reward',b=>{
+  const today=new Date().toDateString(),y=new Date(Date.now()-864e5).toDateString();
+  let st=ST.get('daily',{last:'',streak:0});
+  let cur=(st.last===today||st.last===y)?st.streak:0;
+  if(cur>=7&&st.last!==today)cur=0;
+  const done=st.last===today;
+  const g=mk('div',null,'dy');
+  DAYS.forEach((v,i)=>{const d=mk('div','Day '+(i+1)+'\n'+v);if(i<cur)d.className='got';else if(i===cur&&!done)d.className='now';g.appendChild(d);});
+  b.appendChild(g);
+  const c=mk('button',done?'Come back tomorrow':'Claim '+DAYS[cur]+' coins');
+  c.disabled=done;
+  c.onclick=()=>{coins+=DAYS[cur];ST.set('daily',{last:today,streak:cur+1});refresh();toast('+'+DAYS[cur]+' coins');$('pnl').classList.remove('show');};
+  b.appendChild(c);
+});
+
+const ITEMS=[['White','#fff',0],['Gold','#ffd54f',200],['Mint','#a5f3d0',100],['Pink','#ffc1e3',100],['Sky','#a8d8ff',100]];
+$('nIn').onclick=()=>panel('Inventory: dice color',b=>{
+  const draw=()=>{
+    b.innerHTML='';b.appendChild(mk('div','Coins: '+coins));
+    ITEMS.forEach(([n,c,pr])=>{
+      const r=mk('div',null,'rw');const sw=mk('span','\u{1F3B2} '+n);sw.style.color=c;r.appendChild(sw);
+      const have=owned.includes(c);
+      const b2=mk('button',diceC===c?'In use':have?'Use':'Buy '+pr);
+      b2.disabled=diceC===c||(!have&&coins<pr);
+      b2.onclick=()=>{if(!have){coins-=pr;owned.push(c);ST.set('owned',owned);}diceC=c;ST.set('dice',c);refresh();draw();};
+      r.appendChild(b2);b.appendChild(r);
+    });
+  };
+  draw();
+});
+
+const AVS=['\u{1F9D1}','\u{1F466}','\u{1F467}','\u{1F468}','\u{1F469}','\u{1F9D4}','\u{1F60E}','\u{1F431}','\u{1F436}','\u{1F981}'];
+$('nSo').onclick=()=>panel('Profile and invite',b=>{
+  const inp=mk('input');inp.maxLength=12;inp.value=pname;inp.placeholder='Your name';b.appendChild(inp);
+  const av=mk('div',null,'avs');let sel=pav;
+  AVS.forEach(a=>{const s=mk('span',a,a===sel?'sel':'');s.onclick=()=>{sel=a;[...av.children].forEach(x=>{x.className=x.textContent===a?'sel':'';});};av.appendChild(s);});
+  b.appendChild(av);
+  const sv=mk('button','Save');
+  sv.onclick=()=>{pname=(inp.value.trim()||'Player').slice(0,12);pav=sel;ST.set('name',pname);ST.set('av',pav);refresh();toast('Saved');};
+  const sh=mk('button','Invite friends');
+  sh.onclick=()=>{const d={title:'Lodu Family',text:'Play Lodu Family with me!',url:location.href};if(navigator.share)navigator.share(d).catch(()=>{});else toast('Send your friends the game link');};
+  b.appendChild(sv);b.appendChild(sh);
+  const lo=mk('button','Switch player');lo.onclick=()=>{$('pnl').classList.remove('show');showLogin();};b.appendChild(lo);
+});
+
+$('nAd').onclick=()=>panel('Adda (voice room)',b=>{
+  b.appendChild(mk('div','Talk with friends while you play. Create a room, share the number, start the game, then tap the mic button.'));
+  const o=mk('button','Open room');o.onclick=()=>{$('pnl').classList.remove('show');openLobby();};b.appendChild(o);
+});
+refresh();
+/* ===== Login ===== */
+let lgSel=pav;
+const lgA=$('lga');
+AVS.forEach(a=>{const s=mk('span',a,a===lgSel?'sel':'');s.onclick=()=>{lgSel=a;[...lgA.children].forEach(x=>{x.className=x.textContent===a?'sel':'';});};lgA.appendChild(s);});
+function showLogin(){$('lgn').value=ST.get('logged',false)?pname:'';$('lge').textContent='';$('login').classList.add('show');}
+function doLogin(guest){
+  const n=guest?'Guest'+(100+Math.random()*900|0):$('lgn').value.trim();
+  if(!n){$('lge').textContent='Please type your name';return;}
+  if(!ST.get('logged',false)){coins+=200;}
+  pname=n.slice(0,12);pav=lgSel;ST.set('name',pname);ST.set('av',pav);ST.set('logged',true);
+  refresh();$('login').classList.remove('show');toast('Welcome '+pname+'!');
+}
+$('lgp').onclick=()=>doLogin(false);
+$('lgg').onclick=()=>doLogin(true);
+$('lgn').onkeydown=e=>{if(e.key==='Enter')doLogin(false);};
+if(!ST.get('logged',false))showLogin();
+</script>
+</body>
+</html>
